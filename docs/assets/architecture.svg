@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 372" width="1000" height="372" role="img" aria-labelledby="arch-title arch-desc">
+  <title id="arch-title">AutoHarness process architecture</title>
+  <desc id="arch-desc">The GPUI shell speaks JSON-RPC over a 0600 Unix socket to autoharnessd. The daemon owns the socket server, the run lifecycle, git worktrees, and the SQLite WAL ledger, and spawns the codex and claude CLIs in a sandbox with a fake HOME. Events are persisted to the ledger before they are broadcast, and the shell replays them from a sequence number before streaming live.</desc>
+
+  <defs>
+    <marker id="arch-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 10 5 0 10Z" fill="#ffffff" fill-opacity="0.45"/>
+    </marker>
+    <marker id="arch-arrow-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 10 5 0 10Z" fill="#2eccbd" fill-opacity="0.75"/>
+    </marker>
+  </defs>
+
+  <!-- Dark-only by design (crates/ui-gpui/src/theme.rs), so the card carries its
+       own true black instead of inheriting the page. One asset is then correct
+       in both GitHub themes and there is no light variant to keep in sync. -->
+  <rect x="0.5" y="0.5" width="999" height="371" rx="16" fill="#000000" stroke="#ffffff" stroke-opacity="0.14"/>
+
+  <g font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" text-anchor="middle">
+
+    <!-- Process names, not boxes: three processes is the whole point, and a
+         border around each only competes with the node borders inside it. -->
+    <g font-size="12" fill="#ffffff" fill-opacity="0.45" letter-spacing="0.4">
+      <text x="130" y="150">AutoHarness.app</text>
+      <text x="522" y="66">autoharnessd</text>
+      <text x="886" y="150">engine processes</text>
+    </g>
+
+    <g fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.14">
+      <rect x="48" y="168" width="164" height="76" rx="10"/>
+      <rect x="366" y="80" width="312" height="56" rx="10"/>
+      <rect x="366" y="148" width="312" height="56" rx="10"/>
+      <rect x="366" y="216" width="138" height="60" rx="10"/>
+      <rect x="520" y="216" width="158" height="60" rx="10"/>
+      <rect x="804" y="168" width="164" height="56" rx="10"/>
+      <rect x="804" y="242" width="164" height="56" rx="10"/>
+    </g>
+
+    <!-- The teal path is the ordering contract: nothing reaches a subscriber
+         that is not already durable. -->
+    <g stroke-width="1.5" fill="none" stroke-linejoin="round">
+      <path d="M212 194C272 194 306 108 366 108" stroke="#ffffff" stroke-opacity="0.35" marker-start="url(#arch-arrow)" marker-end="url(#arch-arrow)"/>
+      <path d="M522 136 522 148" stroke="#ffffff" stroke-opacity="0.35" marker-end="url(#arch-arrow)"/>
+      <path d="M480 204 444 216" stroke="#ffffff" stroke-opacity="0.35" marker-end="url(#arch-arrow)"/>
+      <path d="M564 204 594 216" stroke="#2eccbd" stroke-opacity="0.55" marker-end="url(#arch-arrow-teal)"/>
+      <path d="M599 276 599 320 130 320 130 244" stroke="#2eccbd" stroke-opacity="0.55" marker-end="url(#arch-arrow-teal)"/>
+      <path d="M678 168C736 168 762 196 804 196" stroke="#ffffff" stroke-opacity="0.35" marker-end="url(#arch-arrow)"/>
+      <path d="M678 184C736 184 762 270 804 270" stroke="#ffffff" stroke-opacity="0.35" marker-end="url(#arch-arrow)"/>
+    </g>
+
+    <g font-size="11.5" fill="#ffffff" fill-opacity="0.5">
+      <text x="289" y="112">JSON-RPC</text>
+      <text x="289" y="128">over 0600 socket</text>
+      <text x="741" y="124">sandboxed,</text>
+      <text x="741" y="140">fake HOME</text>
+      <text x="334" y="310" fill="#2eccbd" fill-opacity="0.85">replay since_sequence, then live</text>
+    </g>
+
+    <g fill="#ffffff" fill-opacity="0.92" font-size="14" font-weight="500">
+      <text x="130" y="203" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13">autoharness</text>
+      <text x="522" y="105">socket server</text>
+      <text x="522" y="173">run lifecycle</text>
+      <text x="435" y="243">git worktrees</text>
+      <text x="599" y="243">SQLite WAL ledger</text>
+      <text x="886" y="201" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13">codex CLI</text>
+      <text x="886" y="275" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13">claude CLI</text>
+    </g>
+
+    <g fill="#ffffff" fill-opacity="0.5" font-size="11.5">
+      <text x="130" y="220">GPUI shell</text>
+      <text x="522" y="122">peer-UID + token auth</text>
+      <text x="522" y="190">router · scheduler · detector</text>
+      <text x="435" y="260">one branch per node</text>
+      <text x="599" y="260" font-size="10.5">persisted before broadcast</text>
+    </g>
+  </g>
+</svg>

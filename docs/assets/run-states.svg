@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 500" width="1060" height="500" role="img" aria-labelledby="states-title states-desc">
+  <title id="states-title">Legal run state transitions</title>
+  <desc id="states-desc">Draft may move to AwaitingApproval for a swarm or DAG, to Running for a direct run or bounded loop, to Blocked when an engine, sandbox, or worktree is unavailable, or to Cancelled. AwaitingApproval may move to Running once approved, or to Cancelled if rejected. Running may move to Paused, to Blocked on a detector or scheduler trigger, or to Succeeded, Failed, or Cancelled. Paused may move to Running, Blocked, or Cancelled. Blocked may move to AwaitingApproval with a newly compiled plan, to Running once recovered, or to Failed or Cancelled. Every other pair is an error rather than a panic.</desc>
+
+  <rect x="0.5" y="0.5" width="1059" height="499" rx="16" fill="#000000" stroke="#ffffff" stroke-opacity="0.14"/>
+
+  <g font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+
+    <!-- The prose calls this an explicit table, so it is drawn as one. A graph
+         of the same 18 transitions needs edges that cross, and a crossing is
+         where a reader starts guessing. -->
+    <text x="32" y="44" font-size="12" fill="#ffffff" fill-opacity="0.45" letter-spacing="0.4">rows: the state a run is in  ·  columns: a state it may move to</text>
+
+    <g text-anchor="middle" font-size="11.5" fill="#ffffff" fill-opacity="0.55">
+      <text x="261" y="74">Awaiting</text>
+      <text x="261" y="88">Approval</text>
+      <text x="379" y="88">Running</text>
+      <text x="497" y="88">Paused</text>
+      <text x="615" y="88">Blocked</text>
+      <text x="733" y="88" fill="#34c759" fill-opacity="0.85">Succeeded</text>
+      <text x="851" y="88" fill="#f5453a" fill-opacity="0.85">Failed</text>
+      <text x="969" y="88">Cancelled</text>
+    </g>
+
+    <g stroke="#ffffff" stroke-opacity="0.14">
+      <path d="M32 100 1028 100"/>
+    </g>
+    <g stroke="#ffffff" stroke-opacity="0.07">
+      <path d="M32 170 1028 170M32 240 1028 240M32 310 1028 310M32 380 1028 380M32 450 1028 450"/>
+      <path d="M202 100 202 450"/>
+    </g>
+
+    <g font-size="13" fill="#ffffff" fill-opacity="0.92" font-weight="500">
+      <text x="32" y="139">Draft</text>
+      <text x="32" y="209">AwaitingApproval</text>
+      <text x="32" y="279">Running</text>
+      <text x="32" y="349">Paused</text>
+      <text x="32" y="419">Blocked</text>
+    </g>
+
+    <!-- Transitions the router or the operator causes, in the cockpit accent. -->
+    <g fill="#2eccbd" fill-opacity="0.10" stroke="#2eccbd" stroke-opacity="0.30">
+      <rect x="210" y="108" width="102" height="54" rx="8"/>
+      <rect x="328" y="108" width="102" height="54" rx="8"/>
+      <rect x="564" y="108" width="102" height="54" rx="8"/>
+      <rect x="328" y="178" width="102" height="54" rx="8"/>
+      <rect x="446" y="248" width="102" height="54" rx="8"/>
+      <rect x="564" y="248" width="102" height="54" rx="8"/>
+      <rect x="328" y="318" width="102" height="54" rx="8"/>
+      <rect x="564" y="318" width="102" height="54" rx="8"/>
+      <rect x="210" y="388" width="102" height="54" rx="8"/>
+      <rect x="328" y="388" width="102" height="54" rx="8"/>
+    </g>
+
+    <!-- Terminal outcomes carry their own colour so the three ways a run can
+         end are readable without reading the header. -->
+    <g fill="#34c759" fill-opacity="0.10" stroke="#34c759" stroke-opacity="0.30">
+      <rect x="682" y="248" width="102" height="54" rx="8"/>
+    </g>
+    <g fill="#f5453a" fill-opacity="0.10" stroke="#f5453a" stroke-opacity="0.30">
+      <rect x="800" y="248" width="102" height="54" rx="8"/>
+      <rect x="800" y="388" width="102" height="54" rx="8"/>
+    </g>
+    <g fill="#ffffff" fill-opacity="0.06" stroke="#ffffff" stroke-opacity="0.20">
+      <rect x="918" y="108" width="102" height="54" rx="8"/>
+      <rect x="918" y="178" width="102" height="54" rx="8"/>
+      <rect x="918" y="248" width="102" height="54" rx="8"/>
+      <rect x="918" y="318" width="102" height="54" rx="8"/>
+      <rect x="918" y="388" width="102" height="54" rx="8"/>
+    </g>
+
+    <!-- A cell with no cause to name gets a dot: the transition is legal and
+         needs no condition beyond the command that asks for it. -->
+    <g text-anchor="middle">
+      <g fill="#2eccbd" fill-opacity="0.95" font-size="10.5">
+        <text x="261" y="139">swarm / DAG</text>
+        <text x="379" y="139">direct / loop</text>
+        <text x="615" y="123" font-size="10">engine, sandbox,</text>
+        <text x="615" y="139" font-size="10">or worktree</text>
+        <text x="615" y="155" font-size="10">unavailable</text>
+        <text x="379" y="209">approved</text>
+        <text x="615" y="271">detector or</text>
+        <text x="615" y="287">scheduler</text>
+        <text x="261" y="411">newly compiled</text>
+        <text x="261" y="427">plan</text>
+        <text x="379" y="419">recovered</text>
+      </g>
+      <text x="969" y="209" font-size="10.5" fill="#ffffff" fill-opacity="0.75">rejected</text>
+      <g fill="#2eccbd" fill-opacity="0.7">
+        <circle cx="497" cy="275" r="3.5"/>
+        <circle cx="379" cy="345" r="3.5"/>
+        <circle cx="615" cy="345" r="3.5"/>
+      </g>
+      <circle cx="733" cy="275" r="3.5" fill="#34c759" fill-opacity="0.7"/>
+      <g fill="#f5453a" fill-opacity="0.7">
+        <circle cx="851" cy="275" r="3.5"/>
+        <circle cx="851" cy="415" r="3.5"/>
+      </g>
+      <g fill="#ffffff" fill-opacity="0.5">
+        <circle cx="969" cy="135" r="3.5"/>
+        <circle cx="969" cy="275" r="3.5"/>
+        <circle cx="969" cy="345" r="3.5"/>
+        <circle cx="969" cy="415" r="3.5"/>
+      </g>
+    </g>
+
+    <text x="32" y="478" font-size="11.5" fill="#ffffff" fill-opacity="0.45">An empty cell is a Result::Err, never a panic  ·  a run enters Draft on creation  ·  Succeeded, Failed, and Cancelled are terminal</text>
+  </g>
+</svg>

@@ -17,6 +17,7 @@
 //! All daemon-owned commands (check, git) go through `Sandbox::run_command`
 //! / `Sandbox::run_bookkeeping` — never raw spawns.
 
+use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -25,9 +26,9 @@ use autoharness_core::detector::{
 };
 use autoharness_core::{Budget, ExecutionShape, RunState};
 use autoharness_engines::process::SessionDirs;
-use autoharness_engines::{EngineAdapter, EngineEvent};
+use autoharness_engines::{EngineAdapter, EngineEvent, ToolStatus};
 use autoharness_protocol::params::{QueueItem, QueueState};
-use serde_json::json;
+use serde_json::{Value, json};
 use tokio::sync::mpsc;
 
 use crate::AppState;
@@ -165,6 +166,10 @@ pub(crate) async fn run_task(
     // Remembered so a check whose result CHANGED counts as progress even when
     // it is still failing — red-to-different-red is how debugging looks.
     let mut last_check_class: Option<String> = None;
+    // Sources this run has already looked at, so "a source not previously
+    // inspected" is a fact rather than an assumption. Re-reading the same file
+    // stays an ordinary action and can still trip the repeat triggers.
+    let mut inspected: HashSet<String> = HashSet::new();
 
     loop {
         tokio::select! {
@@ -264,10 +269,19 @@ pub(crate) async fn run_task(
                             );
                         }
 
-                        if matches!(event, EngineEvent::ToolActivity { .. }) {
+                        // One call, not two: a tool emits Started and Finished,
+                        // and charging both halved the budget the user was told
+                        // they had.
+                        if matches!(
+                            event,
+                            EngineEvent::ToolActivity {
+                                status: ToolStatus::Started,
+                                ..
+                            }
+                        ) {
                             budget.tool_calls += 1;
                         }
-                        if let Some(signal) = signal_for(&event)
+                        if let Some(signal) = signal_for(&event, &mut inspected)
                             && let Some(trigger) = detector.observe(signal)
                         {
                             match apply_recovery(
@@ -424,18 +438,97 @@ pub(crate) async fn run_task(
     crate::queue::runner_stopped(&state, &run_id).await;
 }
 
+/// Tool calls that only look at something, and the thing they looked at.
+///
+/// Named tools match exactly. `shell` is matched on its leading word — two
+/// words for `git`, since `git log` and `git commit` are not the same kind of
+/// thing at all. The list is deliberately short and conservative: a read
+/// mistaken for a write only delays a no-progress trigger by one action,
+/// whereas a write mistaken for a read would suppress evidence — and a write
+/// that matters shows up as [`EngineEvent::FileChange`] regardless.
+fn inspected_source(name: &str, detail: &Value) -> Option<String> {
+    const READ_TOOLS: &[&str] = &[
+        "Read",
+        "Grep",
+        "Glob",
+        "WebFetch",
+        "WebSearch",
+        "NotebookRead",
+    ];
+    const READ_COMMANDS: &[&str] = &[
+        "cat",
+        "head",
+        "tail",
+        "ls",
+        "grep",
+        "rg",
+        "find",
+        "fd",
+        "wc",
+        "file",
+        "stat",
+        "which",
+        "tree",
+        "git log",
+        "git diff",
+        "git status",
+        "git show",
+        "git blame",
+    ];
+
+    if name != "shell" {
+        return READ_TOOLS
+            .contains(&name)
+            .then(|| format!("{name}:{detail}"));
+    }
+    let command = detail.get("command").and_then(Value::as_str)?;
+    let mut words = command.split_whitespace();
+    let lead = match words.next()? {
+        "git" => format!("git {}", words.next().unwrap_or_default()),
+        first => first.to_string(),
+    };
+    // ponytail: leading word only, so `cat a && rm b` reads as a read. Tighten
+    // by parsing the command line if that ever costs anything real.
+    READ_COMMANDS
+        .contains(&lead.as_str())
+        .then(|| format!("shell:{command}"))
+}
+
 /// Map a normalized engine event onto a detector signal. Events that carry no
 /// evidence either way (text, usage, session identity) map to nothing — the
 /// detector must never count narration as activity.
-fn signal_for(event: &EngineEvent) -> Option<Signal> {
+fn signal_for(event: &EngineEvent, inspected: &mut HashSet<String>) -> Option<Signal> {
     match event {
-        EngineEvent::ToolActivity { name, detail, .. } => Some(Signal::Action {
-            fingerprint: Fingerprint::action(name, &detail.to_string()),
-            // The adapters do not distinguish "could not run" from "ran and
-            // failed"; treat every tool call as valid and let the repeated
-            // action trigger catch a stuck one.
-            invalid: false,
-        }),
+        EngineEvent::ToolActivity {
+            name,
+            detail,
+            status: ToolStatus::Started,
+        } => {
+            // Reading something this run has not read before is research, and
+            // research is what the detector is documented to tolerate — its own
+            // `research_reading_many_sources_is_not_a_loop` fixture feeds
+            // exactly this signal, which nothing in the daemon ever produced.
+            // Without it, six read-only calls tripped `no_progress` and a run
+            // that was investigating normally got interrupted mid-turn.
+            if let Some(source) = inspected_source(name, detail)
+                && inspected.insert(source)
+            {
+                return Some(Signal::Progress(Progress::Source));
+            }
+            Some(Signal::Action {
+                fingerprint: Fingerprint::action(name, &detail.to_string()),
+                // The adapters do not distinguish "could not run" from "ran and
+                // failed"; treat every tool call as valid and let the repeated
+                // action trigger catch a stuck one.
+                invalid: false,
+            })
+        }
+        // Only the start of a tool call is an action. Counting the finish too
+        // charged every call to the budget twice, and its detail is `{"success":
+        // bool}` and nothing else — so three successful but completely
+        // different tools fingerprinted identically and fired `repeated_action`
+        // on their own.
+        EngineEvent::ToolActivity { .. } => None,
         // A file changed: that is real workspace movement.
         EngineEvent::FileChange { .. } => Some(Signal::Progress(Progress::Workspace)),
         EngineEvent::Failed { message, .. } => Some(Signal::Error {
@@ -886,4 +979,112 @@ pub(crate) async fn reconcile_after_restart(state: &AppState) -> usize {
         reconciled += 1;
     }
     reconciled
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn started(name: &str, detail: Value) -> EngineEvent {
+        EngineEvent::ToolActivity {
+            name: name.to_string(),
+            status: ToolStatus::Started,
+            detail,
+        }
+    }
+
+    fn finished(name: &str, success: bool) -> EngineEvent {
+        EngineEvent::ToolActivity {
+            name: name.to_string(),
+            status: ToolStatus::Finished,
+            detail: json!({ "success": success }),
+        }
+    }
+
+    /// A run that opened six files was blocked after roughly ten seconds with
+    /// "6 tool actions with no workspace, check, source, or artifact progress".
+    /// Reading is how every run starts, and the detector already has a fixture
+    /// saying so — the daemon simply never emitted the signal it needs.
+    #[test]
+    fn a_run_that_is_only_reading_is_not_blocked_for_no_progress() {
+        let mut detector = Detector::default();
+        let mut inspected = HashSet::new();
+        for file in [
+            "runner.rs",
+            "detector.rs",
+            "claude.rs",
+            "codex.rs",
+            "store.rs",
+            "theme.rs",
+            "router.rs",
+            "queue.rs",
+        ] {
+            for event in [
+                started("Read", json!({ "file_path": format!("/repo/{file}") })),
+                finished("Read", true),
+            ] {
+                let trigger = signal_for(&event, &mut inspected).and_then(|s| detector.observe(s));
+                assert!(trigger.is_none(), "reading {file} must not trip a trigger");
+            }
+        }
+    }
+
+    /// Every tool reports `{"success":true}` when it finishes and nothing else,
+    /// so treating the finish as an action fingerprinted four unrelated tools
+    /// as one repeated action — enough on its own to fire `repeated_action` at
+    /// its threshold of three. The finish carries no evidence; it maps to
+    /// nothing.
+    #[test]
+    fn identical_success_payloads_from_different_tools_are_not_a_repeat() {
+        let mut inspected = HashSet::new();
+        for name in ["Read", "Grep", "Glob", "WebFetch"] {
+            assert!(
+                signal_for(&finished(name, true), &mut inspected).is_none(),
+                "the finish of {name} must not be an action"
+            );
+        }
+    }
+
+    /// The dedup is what keeps the fix honest: re-reading one file is an
+    /// ordinary action, so a genuine read loop still trips `repeated_action`.
+    #[test]
+    fn reading_the_same_file_over_and_over_is_still_a_loop() {
+        let mut detector = Detector::default();
+        let mut inspected = HashSet::new();
+        let event = started("Read", json!({ "file_path": "/repo/runner.rs" }));
+        let mut triggers = Vec::new();
+        for _ in 0..6 {
+            if let Some(trigger) =
+                signal_for(&event, &mut inspected).and_then(|s| detector.observe(s))
+            {
+                triggers.push(trigger);
+            }
+        }
+        assert!(
+            !triggers.is_empty(),
+            "the same file read six times must still be caught"
+        );
+    }
+
+    #[test]
+    fn a_write_is_never_mistaken_for_a_read() {
+        assert!(inspected_source("Write", &json!({ "file_path": "/repo/a.rs" })).is_none());
+        assert!(inspected_source("Edit", &json!({ "file_path": "/repo/a.rs" })).is_none());
+        assert!(inspected_source("shell", &json!({ "command": "rm -rf build" })).is_none());
+        assert!(inspected_source("shell", &json!({ "command": "git commit -m x" })).is_none());
+        assert!(inspected_source("shell", &json!({ "command": "cargo test" })).is_none());
+        assert!(inspected_source("shell", &json!({ "command": "git log --oneline" })).is_some());
+        assert!(inspected_source("shell", &json!({ "command": "cat Cargo.toml" })).is_some());
+    }
+
+    /// `normalize` collapses digits, so a normalized key would treat every
+    /// numbered file as one source and silently drop the progress signal.
+    #[test]
+    fn files_that_differ_only_by_number_are_separate_sources() {
+        let mut inspected = HashSet::new();
+        let one = inspected_source("shell", &json!({ "command": "cat log1.txt" })).unwrap();
+        let two = inspected_source("shell", &json!({ "command": "cat log2.txt" })).unwrap();
+        assert!(inspected.insert(one));
+        assert!(inspected.insert(two));
+    }
 }

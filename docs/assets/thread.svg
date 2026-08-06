@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 268" width="820" height="268" role="img" aria-labelledby="thread-title thread-desc">
+  <title id="thread-title">A follow-up is a new run, not a new conversation</title>
+  <desc id="thread-desc">Run r1 has no parent, r2 names r1 as its parent, and r3 names r2. All three share one git worktree and one provider HOME, keyed on the repository root, which is what lets the provider resume the transcript it wrote on the previous turn.</desc>
+
+  <defs>
+    <marker id="thread-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 0 10 5 0 10Z" fill="#ffffff" fill-opacity="0.45"/>
+    </marker>
+  </defs>
+
+  <rect x="0.5" y="0.5" width="819" height="267" rx="16" fill="#000000" stroke="#ffffff" stroke-opacity="0.14"/>
+
+  <g font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" text-anchor="middle">
+
+    <g fill="#0a0a0a" stroke="#ffffff" stroke-opacity="0.14">
+      <rect x="48" y="48" width="200" height="76" rx="10"/>
+      <rect x="308" y="48" width="200" height="76" rx="10"/>
+      <rect x="568" y="48" width="200" height="76" rx="10"/>
+    </g>
+
+    <!-- The shared thing gets the accent: one worktree and one provider HOME is
+         the entire reason a follow-up can resume rather than start over. -->
+    <rect x="248" y="170" width="320" height="68" rx="10" fill="#0a0a0a" stroke="#2eccbd" stroke-opacity="0.35"/>
+
+    <g stroke="#ffffff" stroke-opacity="0.35" stroke-width="1.5" fill="none" marker-end="url(#thread-arrow)">
+      <path d="M248 86 308 86"/>
+      <path d="M508 86 568 86"/>
+    </g>
+    <g stroke="#2eccbd" stroke-opacity="0.4" stroke-width="1.5" fill="none" stroke-dasharray="4 4" stroke-linejoin="round">
+      <path d="M148 124 148 204 248 204"/>
+      <path d="M408 124 408 170"/>
+      <path d="M668 124 668 204 568 204"/>
+    </g>
+
+    <g fill="#ffffff" fill-opacity="0.92" font-size="14.5" font-weight="500">
+      <text x="148" y="83">run r1</text>
+      <text x="408" y="83">run r2</text>
+      <text x="668" y="83">run r3</text>
+    </g>
+    <g fill="#ffffff" fill-opacity="0.5" font-size="11.5">
+      <text x="148" y="102">parent: none</text>
+      <text x="408" y="102">parent: r1</text>
+      <text x="668" y="102">parent: r2</text>
+    </g>
+
+    <text x="408" y="200" fill="#2eccbd" fill-opacity="0.95" font-size="14" font-weight="500">one worktree + one provider HOME</text>
+    <text x="408" y="219" fill="#ffffff" fill-opacity="0.5" font-size="11.5">keyed on the repository root</text>
+  </g>
+</svg>

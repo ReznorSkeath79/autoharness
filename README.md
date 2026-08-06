@@ -6,7 +6,7 @@
 [![rust](https://img.shields.io/badge/rust-1.97%2B%20·%20edition%202024-CE422B?logo=rust&logoColor=white)](#requirements)
 [![version](https://img.shields.io/badge/version-0.1.0-blue)](Cargo.toml)
 [![license](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
-[![tests](https://img.shields.io/badge/tests-601%20passing-brightgreen)](#test)
+[![tests](https://img.shields.io/badge/tests-606%20passing-brightgreen)](#test)
 [![network](https://img.shields.io/badge/external%20writes-none-informational)](SECURITY.md)
 
 > Badges are declared facts, not CI output. There is no hosted pipeline: the
@@ -128,51 +128,13 @@ erases a project and everything derived from it, irreversibly.
 Three processes. The shell never touches SQLite or an engine directly — it
 speaks JSON-RPC to the daemon, which owns every side effect.
 
-```mermaid
-flowchart LR
-    subgraph desktop["AutoHarness.app"]
-        UI["autoharness<br/>GPUI shell"]
-    end
-    subgraph daemon["autoharnessd"]
-        RPC["socket server<br/>peer-UID + token auth"]
-        RUN["run lifecycle<br/>router · scheduler · detector"]
-        WT["git worktrees<br/>one branch per node"]
-        LEDGER[("SQLite WAL<br/>append-only events")]
-    end
-    subgraph engines["engine processes"]
-        CX["codex CLI"]
-        CL["claude CLI"]
-    end
-
-    UI <-->|"JSON-RPC over<br/>Unix socket, 0600"| RPC
-    RPC --> RUN
-    RUN --> WT
-    RUN -->|"persist before broadcast"| LEDGER
-    LEDGER -->|"replay since_sequence,<br/>then live"| UI
-    RUN -->|"sandboxed, fake HOME"| CX
-    RUN -->|"sandboxed, fake HOME"| CL
-```
+![The GPUI shell speaks JSON-RPC over a 0600 Unix socket to autoharnessd. The daemon owns the socket server, the run lifecycle, git worktrees, and the SQLite WAL ledger, and spawns the codex and claude CLIs sandboxed with a fake HOME. Events are persisted to the ledger before they are broadcast, and the shell replays them from a sequence number before streaming live.](docs/assets/architecture.svg)
 
 One objective becomes one run. The router decides the shape from measured
 facts; an engine may propose something richer, and Rust decides whether to
 believe it.
 
-```mermaid
-flowchart TD
-    OBJ["objective"] --> FACTS["TaskFacts<br/>(measured, not inferred)"]
-    FACTS --> PROP{"engine proposal?"}
-    PROP -->|"none, or low confidence"| SIMPLE["Direct / BoundedLoop"]
-    PROP -->|"high confidence"| RICH["Swarm / DynamicDag"]
-    RICH --> APPROVE{"human approval"}
-    APPROVE -->|approved| EXEC["execute"]
-    APPROVE -->|rejected| CANCEL["cancelled"]
-    SIMPLE --> EXEC
-    EXEC --> CHECK["acceptance checks<br/>in the run's own worktree"]
-    CHECK --> COMMIT["commit on the run's branch"]
-
-    classDef guard fill:#1d1d1d,stroke:#888,color:#fff
-    class APPROVE,PROP guard
-```
+![An objective becomes measured TaskFacts. With no proposal, or a low-confidence one, the run falls to Direct or BoundedLoop. A high-confidence proposal becomes a Swarm or DynamicDag, which additionally needs human approval before it can execute; a rejected proposal cancels the run. Execution is followed by acceptance checks in the run's own worktree and a commit on the run's branch.](docs/assets/routing.svg)
 
 Uncertainty falls **down** the ladder, never up: a low-confidence proposal
 becomes a bounded loop, because a graph nobody validated commits several
@@ -182,43 +144,13 @@ require a human to approve.
 Run states are an explicit table — an illegal transition is a `Result::Err`,
 never a panic.
 
-```mermaid
-stateDiagram-v2
-    [*] --> Draft
-    Draft --> AwaitingApproval: swarm / DAG
-    Draft --> Running: direct / loop
-    Draft --> Blocked: engine, sandbox,<br/>or worktree unavailable
-    Draft --> Cancelled
-    AwaitingApproval --> Running: approved
-    AwaitingApproval --> Cancelled: rejected
-    Running --> Paused
-    Running --> Blocked: detector or scheduler
-    Running --> Succeeded
-    Running --> Failed
-    Running --> Cancelled
-    Paused --> Running
-    Paused --> Blocked
-    Paused --> Cancelled
-    Blocked --> AwaitingApproval: newly compiled plan
-    Blocked --> Running: recovered
-    Blocked --> Failed
-    Blocked --> Cancelled
-    Succeeded --> [*]
-    Failed --> [*]
-    Cancelled --> [*]
-```
+![Draft may move to AwaitingApproval for a swarm or DAG, to Running for a direct run or bounded loop, to Blocked when an engine, sandbox, or worktree is unavailable, or to Cancelled. AwaitingApproval may move to Running once approved, or to Cancelled if rejected. Running may move to Paused, to Blocked on a detector or scheduler trigger, or to Succeeded, Failed, or Cancelled. Paused may move to Running, Blocked, or Cancelled. Blocked may move to AwaitingApproval with a newly compiled plan, to Running once recovered, or to Failed or Cancelled. Every other pair is an error rather than a panic.](docs/assets/run-states.svg)
 
 A follow-up is a **new run** with a `parent_run_id`, not a new conversation.
 Every turn of one thread shares one worktree and one provider home, which is
 what lets the provider resume the transcript it wrote last turn.
 
-```mermaid
-flowchart LR
-    R1["run r1<br/>parent: none"] --> R2["run r2<br/>parent: r1"] --> R3["run r3<br/>parent: r2"]
-    R1 -.-> HOME[("one worktree +<br/>one provider HOME<br/>keyed on the root")]
-    R2 -.-> HOME
-    R3 -.-> HOME
-```
+![Run r1 has no parent, r2 names r1 as its parent, and r3 names r2. All three share one git worktree and one provider HOME, keyed on the repository root.](docs/assets/thread.svg)
 
 The sidebar lists thread **roots**; the transcript walks the chain downward
 so every turn of a conversation reads as one conversation.

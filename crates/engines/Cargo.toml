@@ -1,0 +1,21 @@
+[package]
+name = "autoharness-engines"
+description = "Engine adapter contract plus Fake/Codex/Claude adapters for AutoHarness"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+autoharness-core.workspace = true
+autoharness-pty.workspace = true
+async-trait.workspace = true
+libc.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { workspace = true, features = ["test-util"] }

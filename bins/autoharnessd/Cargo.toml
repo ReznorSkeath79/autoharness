@@ -1,0 +1,11 @@
+[package]
+name = "autoharnessd"
+description = "AutoHarness daemon binary"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+autoharness-daemon.workspace = true
+tokio.workspace = true
+tracing-subscriber.workspace = true

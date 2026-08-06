@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="128" height="128" role="img" aria-labelledby="autoharness-logo-title">
+  <title id="autoharness-logo-title">AutoHarness</title>
+  <!-- The harness: a bounded frame. Everything a run does happens inside it. -->
+  <rect x="1" y="1" width="22" height="22" rx="6" fill="#000000"/>
+  <rect x="1.5" y="1.5" width="21" height="21" rx="5.5" fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="1"/>
+  <!-- One objective fans out to parallel workers and merges back. Edges are
+       drawn first; the node discs are filled with the frame colour, so they
+       cover the ends and no line has to be trimmed by hand. -->
+  <g stroke="#ffffff" stroke-opacity="0.55" stroke-width="1.5" stroke-linecap="round">
+    <path d="M12 6.5 7.5 12M12 6.5 16.5 12M7.5 12 12 17.5M16.5 12 12 17.5"/>
+  </g>
+  <g fill="#000000" stroke="#ffffff" stroke-opacity="0.55" stroke-width="1.5">
+    <circle cx="7.5" cy="12" r="2"/>
+    <circle cx="16.5" cy="12" r="2"/>
+    <circle cx="12" cy="17.5" r="2"/>
+  </g>
+  <!-- The objective, in the cockpit's accent teal. -->
+  <circle cx="12" cy="6.5" r="2.25" fill="#2eccbd"/>
+</svg>

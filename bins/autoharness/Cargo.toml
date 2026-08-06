@@ -1,0 +1,10 @@
+[package]
+name = "autoharness"
+description = "AutoHarness desktop application binary"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+autoharness-ui-gpui.workspace = true
+tracing-subscriber.workspace = true

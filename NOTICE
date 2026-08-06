@@ -1,0 +1,95 @@
+AutoHarness
+Copyright 2026 the AutoHarness authors
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+------------------------------------------------------------------------------
+Third-party attributions
+------------------------------------------------------------------------------
+
+diri — https://github.com/cristicretu/diri
+Copyright the diri authors
+Licensed under the Apache License, Version 2.0.
+
+AutoHarness's desktop shell (`crates/ui-gpui`) is derived from diri:
+
+- `src/theme.rs` ports the design system from `crates/diri-ui/src/tokens.rs`
+  and `crates/diri-ui/src/status.rs`: type scale, corner radii, spacing and
+  metrics, the semantic colour model, fill opacities, the status vocabulary,
+  the Motion constants, and the wall-clock AnimationPhase math.
+- `src/palette.rs` ports the command palette's action model and ranking from
+  `crates/diri-app/src/palette.rs`, including the penalized-invisible-keyword
+  scheme and curated-order tiebreak.
+
+- `src/ansi.rs` takes the terminal colour model (`TermColor`, `TermStyle`)
+  from `crates/diri-proto/src/grid.rs`.
+- `src/query_editor.rs` and `src/fuzzy.rs` are transplanted essentially
+  verbatim from `crates/diri-app/src/query_editor.rs` and
+  `crates/diri-app/src/fuzzy.rs`, including their tests.
+- `src/motion.rs` ports the monotonic critically damped seam response and
+  260 ms duration from `crates/diri-app/src/seam.rs`; floating-surface and tab
+  transitions adapt the 160 ms and 190 ms recipes from `diri-ui` and the diri
+  inspector while preserving GPUI's reduced-motion behavior.
+- `assets/icons/*.svg` are diri's 24x24 line-icon family, copied unchanged
+  from `crates/diri-ui/assets/icons/`. `src/icon.rs` adapts
+  `crates/diri-ui/src/icon.rs`: the embedded `AssetSource`, the optical size
+  scale and the tintable `Icon` element carry across, while diri's SF Symbol
+  compatibility bridge is dropped because AutoHarness never used those names.
+  `assets/icons/arrow-left.svg` is drawn in the same family style.
+- `assets/icons/brand-claude.svg`, `brand-openai.svg`, `brand-cursor.svg`
+  and `brand-gemini.svg` embed the 24x24 brand-mark path data from
+  `crates/diri-ui/src/brand.rs` (`CLAUDE_PATH`, `OPENAI_PATH`, `CURSOR_PATH`,
+  `GEMINI_PATH`), rendered through the shared `Icon` element instead of
+  diri's canvas rasterizer. The Claude clay and Gemini blue tints in
+  `src/theme.rs` come from diri's `Palette`.
+- `assets/icons/brand-copilot.svg`, `brand-kimi.svg`, `brand-opencode.svg`
+  and `brand-pi.svg` are from Simple Icons
+  (<https://simpleicons.org>, CC0 1.0).
+  All brand marks identify the respective third-party products and remain
+  trademarks of their owners.
+- `components::floating_surface` adapts diri's shared floating-surface recipe
+  so every popover in the shell has one geometry and one material.
+- `src/onboarding.rs` follows diri's readiness surfacing — every precondition
+  listed whether or not it passes, an unavailable one dimmed with the reason
+  beside it — applied to AutoHarness's own preconditions rather than to
+  diri's agent catalog.
+
+`crates/pty` is transplanted wholesale from diri's `crates/diri-engine`:
+
+- `src/pty.rs`, `src/pty/unix.rs`, `src/pty/unsupported.rs`, `src/log.rs`,
+  `src/screen.rs`, `src/detect/*` and `src/status/*` carry across essentially
+  unchanged, with their tests. These are the parts that know about file
+  descriptors, terminals and screen rules rather than about diri.
+- `manifests/*.json` are diri's agent detection manifests, copied unchanged
+  from `Sources/DirijorCore/Resources/manifests/`. They are data: the rules
+  that decide whether an agent is working, waiting or done.
+- `src/types.rs` replaces the `diri-proto` wire types the status reducer
+  depended on (`SessionStatus`, `NeedsInputDetail` and friends) with plain
+  domain types, since AutoHarness has no Swift daemon to stay wire-compatible
+  with. diri's vendor-specific `NeedsInputSource` variants collapse to how the
+  signal was learned rather than whose hook produced it.
+
+Concepts adapted rather than transplanted, listed so the debt is visible even
+where no code was copied:
+
+- The three-pane cockpit shape — sidebar, coordinator, collapsible workbench
+  and inspector, with draggable seams — follows diri's layout thinking.
+- The surface vocabulary: overview, history, worktrees, notifications, and
+  settings as first-class panels reached from one toolbar rather than from a
+  slash-command vocabulary.
+- The idea that a background unit of work earns an alert while a foreground
+  one does not (`src/attention.rs`). The reducer, its triggers, its replay
+  suppression, and its settings gates are AutoHarness's own.
+
+These are adapted to AutoHarness's domain — runs, nodes, worktrees and engines
+rather than sessions and agents — and reimplemented against its own state.
+AutoHarness additionally renders the status marks with motion, which diri
+computes but deliberately does not schedule frames for.
+
+AutoHarness is not a copy of diri and does not share its architecture. The
+daemon, the event ledger, the Seatbelt sandbox, the worktree index and its
+fail-closed reclaim, the router and detector, the engine adapters, and the
+update verification pipeline are AutoHarness's own and have no diri
+counterpart. Where the two disagree, AutoHarness's safety architecture wins:
+no external write, sandbox failure closed, persist before broadcast, and no
+mutation of the user's base checkout.

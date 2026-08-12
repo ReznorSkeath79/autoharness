@@ -77,11 +77,30 @@ Upstream's own priority order for the next owner. All four are `crates/ui-gpui`:
 2. **Onboarding as a real first-run flow** — currently a card inside the
    coordinator transcript (`crates/ui-gpui/src/onboarding.rs`). Wanted: the
    entire first-run surface.
-3. **Auto-create a repo when none is chosen** — upstream flagged this as an
-   UNRESOLVED design question and explicitly refused to guess. Do not silently
-   `git init` on the user's disk. Decide the behaviour before implementing.
+3. ~~**Auto-create a repo when none is chosen**~~ — **ALREADY DONE in this
+   snapshot; the handoff doc is stale.** `HANDOFF-FABLE.md` calls this an
+   unresolved design question, but `project.create` is implemented and fully
+   wired: `crates/protocol/src/lib.rs:29` → `handle_project_create`
+   (`crates/daemon/src/lib.rs:617`) → `Command::CreateProjectAndStart`
+   (`crates/ui-gpui/src/client.rs:1096`) → `onboarding.rs:127` and
+   `lib.rs:3411`. It creates a repo with an initial commit under
+   `~/AutoHarness Projects/` and starts the run in one action. Verify against
+   the code, not the handoff, before picking up any other "open" ask.
 4. **Transition animations** — `motion.rs` has a partial port; missing exits,
    tab-switch motion, and the settings-page push.
+
+## Project registration semantics (verified in code)
+
+- **Git repositories only.** A non-repo folder is refused with
+  `INVALID_PARAMS` and never becomes a project record — test
+  `project_add_rejects_a_non_repository` (`crates/daemon/src/lib.rs:6233`).
+- Any path *inside* a repo resolves to the canonical root via
+  `repository_root()`, so pointing at a subdirectory is fine.
+- The project name is derived from the resolved root's folder name; the `name`
+  argument is only a fallback when that is empty.
+- No repo on hand is not a blocker — `project.create` makes one under
+  `~/AutoHarness Projects/`. The folder name deliberately avoids bare
+  `~/AutoHarness`, which collides with a source checkout on the author's box.
 
 Also called out as unverified upstream, worth confirming ourselves: the `+`
 new-run popover has never been observed rendering, and a `project.add` fired on
